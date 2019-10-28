@@ -17,7 +17,7 @@ Demo code for ICCV19 Paper: SANet: Scene Agnostic Network for Camera Localizatio
      ```bash
     python seq_data/seven_scenes/scenes2seq.py <7scene_seq_dir>
     
-    e.g. if 7scenes sequence `heads` in /home/xxx/Dcouemtns/7scenes/heads, then,
+    e.g. suppose 7scenes sequence `heads` in /home/xxx/Dcouemtns/7scenes/heads, then,
     python seq_data/seven_scenes/scenes2seq.py /home/xxx/Dcouemtns/7scenes/heads
     ```
     The above python script will generate two binary files: `train_frames.bin` and `train_frames.bin` inside of sequence directory, each file stores information of train or test frames (e.g. extrinsic and intrinsic matrix), and can be loaded wih `pickle` lib.

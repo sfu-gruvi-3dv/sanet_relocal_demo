@@ -1,0 +1,3 @@
+/home/luwei/Documents/Tango/relocal/pointnet2/build/CMakeFiles/rebuild_cache.dir
+/home/luwei/Documents/Tango/relocal/pointnet2/build/CMakeFiles/pointnet2_ext.dir
+/home/luwei/Documents/Tango/relocal/pointnet2/build/CMakeFiles/edit_cache.dir

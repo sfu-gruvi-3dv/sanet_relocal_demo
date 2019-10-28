@@ -1,0 +1,134 @@
+//
+// Created by luwei on 14/01/19.
+//
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <iostream>
+#include "cnn.h"
+
+namespace py = pybind11;
+
+// Args:
+
+py::array_t<float_t> compute_lm_pnp(
+        py::array_t<float> x_2d,
+        py::array_t<float> X_3d,
+        py::array_t<float> K,
+        float reproj_thres,
+        int obj_hyps,
+        int refine_steps) {
+
+    py::buffer_info x_2d_buf = x_2d.request();
+    py::buffer_info X_3d_buf = X_3d.request();
+    py::buffer_info K_buf = K.request();
+
+    // Check the types
+    if(!py::isinstance<py::array_t<float_t>>(x_2d))
+        throw std::runtime_error("The x_2d array type should be 32-bit float.");
+    if(!py::isinstance<py::array_t<float_t >>(X_3d))
+        throw std::runtime_error("The X_3d array type should be 32-bit float.");
+    if(!py::isinstance<py::array_t<float_t >>(K))
+        throw std::runtime_error("The K array type should be 32-bit float.");
+
+    // Check the dimension
+    ssize_t H = x_2d.shape(0);          // number of points
+    ssize_t W = x_2d.shape(1);          // number of points
+
+    if (X_3d.shape(0) != x_2d.shape(0) || X_3d.shape(1) != x_2d.shape(1) )
+        throw std::runtime_error("The dim of (h, w) in x_2d and X_3d should be same.");
+    if (x_2d.shape(2) != 2)
+        throw std::runtime_error("The x_2d is a 2D vector.");
+    if (X_3d.shape(2) != 3)
+        throw std::runtime_error("The X_3d is a 3D vector.");
+
+    // buffer ptr
+    float *x_2d_buf_ptr = (float*)x_2d_buf.ptr;
+    float *X_3d_buf_ptr = (float*)X_3d_buf.ptr;
+
+    cv::Mat_<cv::Point2i> sampling_2d = cv::Mat_<cv::Point2i>(H, W);
+    jp::img_coord_t scene_X_3d = jp::img_coord_t::zeros(H, W);
+    for (int i = 0; i < H; ++i) {
+        for (int j = 0; j < W; ++j) {
+            size_t offset = i * W + j;
+
+            // 2D image space coordinate
+            sampling_2d(i, j) = cv::Point2i(int(x_2d_buf_ptr[2 * offset]),
+                    int(x_2d_buf_ptr[2 * offset + 1]));
+
+            // 3D scene coordinate
+            jp::coord3_t scene_coordinate = jp::coord3_t(
+                    double(X_3d_buf_ptr[3 * offset]),
+                    double(X_3d_buf_ptr[3 * offset + 1]),
+                    double(X_3d_buf_ptr[3 * offset + 2]));
+
+            scene_X_3d(i, j) = scene_coordinate;
+        }
+    }
+
+    float *K_buf_ptr = (float*)K_buf.ptr;
+    cv::Mat_<float> camMat = cv::Mat_<float>::zeros(3, 3);
+    camMat(0, 0) = K_buf_ptr[0];
+    camMat(1, 1) = K_buf_ptr[4];
+    camMat(2, 2) = 1.f;
+    camMat(0, 2) = K_buf_ptr[2];
+    camMat(1, 2) = K_buf_ptr[5];
+
+    std::vector<jp::cv_trans_t> refHyps;
+    std::vector<double> sfScores;
+    std::vector<std::vector<cv::Point2i>> sampledPoints;
+    std::vector<double> losses;
+    std::vector<cv::Mat_<int>> inlierMaps;
+    double tErr;
+    double rotErr;
+    int hypIdx;
+
+    double expectedLoss;
+    double sfEntropy;
+    bool correct;
+
+    // Run the PnP pipeline
+    processImageModified(
+            obj_hyps,
+            camMat,
+            reproj_thres,
+            refine_steps,
+            expectedLoss,
+            sfEntropy,
+            correct,
+            refHyps,
+            sfScores,
+            scene_X_3d,
+            sampling_2d,
+            sampledPoints,
+            losses,
+            inlierMaps,
+            tErr,
+            rotErr,
+            hypIdx,
+            false);
+
+    // output variables
+//    auto pred_pose = py::array_t<float_t>(3*4);
+//    py::buffer_info pred_pose_buf = pred_pose.request(true);
+//    float *pred_pose_buf_ptr = (float*)pred_pose_buf.ptr;
+
+    auto pred_pose_vec = py::array_t<float_t>(6);
+    py::buffer_info pred_pose_vec_buf = pred_pose_vec.request(true);
+    float *pred_pose_vec_buf_ptr = (float*)pred_pose_vec_buf.ptr;
+
+    // assign output
+    pred_pose_vec_buf_ptr[0] = (float) refHyps[hypIdx].first.at<double>(0, 0);     // 5  - selected pose, rotation (1st component of Rodriguez vector)
+    pred_pose_vec_buf_ptr[1] = (float) refHyps[hypIdx].first.at<double>(1, 0);     // 6  - selected pose, rotation (2nd component of Rodriguez vector)
+    pred_pose_vec_buf_ptr[2] = (float) refHyps[hypIdx].first.at<double>(2, 0);     // 7  - selected pose, rotation (3th component of Rodriguez vector)
+    pred_pose_vec_buf_ptr[3] = (float) refHyps[hypIdx].second.at<double>(0, 0);    // 8  - selected pose, translation in m (x)
+    pred_pose_vec_buf_ptr[4] = (float) refHyps[hypIdx].second.at<double>(0, 1);    // 9  - selected pose, translation in m (y)
+    pred_pose_vec_buf_ptr[5] = (float) refHyps[hypIdx].second.at<double>(0, 2);    // 10 - selected pose, translation in m (z)
+
+    pred_pose_vec.resize({6});
+    return pred_pose_vec;
+}
+
+PYBIND11_MODULE(lm_pnp, m){
+    m.doc() = "Python binding of LessMore PnP.";
+    m.def("compute_lm_pnp", &compute_lm_pnp, "Check the input array");
+}

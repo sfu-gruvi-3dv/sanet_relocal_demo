@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(pycbf_filter)
 
 # Python Interp Options ------------------------------------------------------------------------------------------------
-set(PYTHON_EXECUTABLE /home/luwei/anaconda3/bin/python)
+# set(PYTHON_EXECUTABLE /home/luwei/anaconda3/bin/python)
 set(PYBIND11_PYTHON_VERSION 3.6)
 
 # Compiler Options -----------------------------------------------------------------------------------------------------

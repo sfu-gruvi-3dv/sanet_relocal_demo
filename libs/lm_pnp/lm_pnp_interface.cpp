@@ -105,6 +105,7 @@ py::array_t<float_t> compute_lm_pnp(
             tErr,
             rotErr,
             hypIdx,
+            false, 
             false);
 
     // output variables

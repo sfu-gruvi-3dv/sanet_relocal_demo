@@ -217,17 +217,18 @@ std::vector<double> softMax(const std::vector<double>& scores)
  *
  * @param diffMaps List of images of reprojection errors.
  */
-std::vector<double> getHypScores(std::vector<cv::Mat_<float>> & diffMaps)
+std::vector<double> getHypScores(std::vector<cv::Mat_<float>> & diffMaps, double inlierThresh)
 {
-    double inlierThresh = 10.0;
-    double inlierSoft = 0.5;  // sigmoid softness (beta)
+//    inlierThresh = 10.0;
+    double inlierSoft = 4.0;  // sigmoid softness (beta)
     std::vector<double> scores;
     for(int i = 0; i < diffMaps.size(); i++)
     {
         double cur_score = 0.0;
         for(unsigned x = 0; x < diffMaps[i].cols; x++)
             for(unsigned y = 0; y < diffMaps[i].rows; y++)
-                cur_score += sigmoid(inlierThresh - inlierSoft * diffMaps[i](y, x));
+//                cur_score += sigmoid(inlierThresh - inlierSoft * diffMaps[i](y, x));
+                cur_score += sigmoid(inlierSoft * (inlierThresh - diffMaps[i](y, x)));
         scores.push_back(cur_score);
     }
     return scores;
@@ -279,7 +280,7 @@ void processImageModified(
         double& tErr,
         double& rotErr,
         int& hypIdx,
-        bool training = false)
+        bool training = false, bool verbose=false)
 {
     std::cout << "Sampling " << objHyps << " hypotheses." << std::endl;
 
@@ -349,7 +350,9 @@ void processImageModified(
         diffMaps[h] = getDiffMap(refHyps[h], estObj, sampling, camMat);
 
     // compute hypothesis scores
-    std::vector<double> scores = getHypScores(diffMaps);
+    std::vector<double> scores = getHypScores(diffMaps, inlierThreshold2D);
+
+    std::cout << scores[0] << ' ' << scores[1] << ' ' << scores[2] << std::endl;
 
     std::cout << "Drawing final Hypothesis." << std::endl;
 

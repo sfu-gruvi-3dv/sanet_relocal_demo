@@ -1,6 +1,7 @@
 import shutil
 import glob, pickle
 import os
+from pathlib import Path
 import numpy as np
 import sys
 sys.path.append('../../')
@@ -71,28 +72,29 @@ if __name__ == '__main__':
         print('Useage: python scenes2seq.py <7scene_seq_dir>')
 
     seq_dir = sys.argv[1]
-    seq_names = glob.glob(os.path.join(seq_dir, 'seq*'))
+    seq_path = Path(seq_dir)
+    seq_parent_dir = seq_path.parent
+    seq_name = seq_dir.split('/')[-1]
+    seq_subs = glob.glob(os.path.join(seq_dir, 'seq*'))
 
     # re-organize sequences
-    for seq_name in seq_names:
-        if not os.path.isdir(seq_name):
+    for seq_path in seq_subs:
+        if not os.path.isdir(seq_path):
             continue
+        seq_num = seq_path.split('/')[-1]
 
-        if not os.path.isfile(os.path.join(seq_dir, seq_name, 'groundtruth.txt')):
-            continue
-
-        re_organize(os.path.join(seq_dir, seq_name))
-        seq = scenes2ares(seq_dir, seq_name)
-        seq.dump_to_json(os.path.join(seq_dir, seq_name, 'seq.json'))
+        re_organize(seq_path)
+        seq = scenes2ares(seq_parent_dir, os.path.join(seq_name, seq_num))
+        seq.dump_to_json(os.path.join(seq_parent_dir, seq_name, seq_num, 'seq.json'))
 
         export_tum_img_info(seq,
-                            os.path.join(seq_dir, seq_name, 'rgb.txt'),
-                            os.path.join(seq_dir, seq_name, 'depth.txt'))
+                            os.path.join(seq_parent_dir, seq_name, seq_num, 'rgb.txt'),
+                            os.path.join(seq_parent_dir, seq_name, seq_num, 'depth.txt'))
         export_to_tum_format(seq,
-                             os.path.join(seq_dir, seq_name, 'groundtruth.txt'))
+                             os.path.join(seq_parent_dir, seq_name, seq_num, 'groundtruth.txt'))
 
         K = seq.get_K_mat(seq.frames[0])
-        np.savetxt(os.path.join(seq_dir, seq_name, 'K.txt'), K)
+        np.savetxt(os.path.join(seq_parent_dir, seq_name, seq_num, 'K.txt'), K)
 
     # generate train and test frames information (e.g. extrinsic, intrinsic)
 
@@ -119,8 +121,8 @@ if __name__ == '__main__':
         train_frames += seq.frames
 
     # dump
-    with open(os.path.join(seq_dir, 'test_frames.bin')) as f:
+    with open(os.path.join(seq_dir, 'test_frames.bin'), 'wb') as f:
         pickle.dump(test_frames, f)
 
-    with open(os.path.join(seq_dir, 'train_frames.bin')) as f:
+    with open(os.path.join(seq_dir, 'train_frames.bin'), 'wb') as f:
         pickle.dump(train_frames, f)

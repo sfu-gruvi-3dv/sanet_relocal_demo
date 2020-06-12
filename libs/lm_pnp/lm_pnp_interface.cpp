@@ -10,7 +10,7 @@ namespace py = pybind11;
 
 // Args:
 
-py::array_t<float_t> compute_lm_pnp(
+py::tuple compute_lm_pnp(
         py::array_t<float> x_2d,
         py::array_t<float> X_3d,
         py::array_t<float> K,
@@ -105,7 +105,6 @@ py::array_t<float_t> compute_lm_pnp(
             tErr,
             rotErr,
             hypIdx,
-            false, 
             false);
 
     // output variables
@@ -117,6 +116,10 @@ py::array_t<float_t> compute_lm_pnp(
     py::buffer_info pred_pose_vec_buf = pred_pose_vec.request(true);
     float *pred_pose_vec_buf_ptr = (float*)pred_pose_vec_buf.ptr;
 
+    auto inlier_map = py::array_t<int32_t >(H * W);
+    py::buffer_info inlier_map_buf = inlier_map.request(true);
+    int *inlier_map_buf_ptr = (int*)inlier_map_buf.ptr;
+
     // assign output
     pred_pose_vec_buf_ptr[0] = (float) refHyps[hypIdx].first.at<double>(0, 0);     // 5  - selected pose, rotation (1st component of Rodriguez vector)
     pred_pose_vec_buf_ptr[1] = (float) refHyps[hypIdx].first.at<double>(1, 0);     // 6  - selected pose, rotation (2nd component of Rodriguez vector)
@@ -125,8 +128,18 @@ py::array_t<float_t> compute_lm_pnp(
     pred_pose_vec_buf_ptr[4] = (float) refHyps[hypIdx].second.at<double>(0, 1);    // 9  - selected pose, translation in m (y)
     pred_pose_vec_buf_ptr[5] = (float) refHyps[hypIdx].second.at<double>(0, 2);    // 10 - selected pose, translation in m (z)
 
+    for (int i = 0; i < H; ++i) {
+        for (int j = 0; j < W; ++j) {
+            size_t offset = i * W + j;
+            inlier_map_buf_ptr[offset] = inlierMaps[hypIdx](i, j);
+        }
+    }
+
     pred_pose_vec.resize({6});
-    return pred_pose_vec;
+    inlier_map.resize({H, W});
+
+    py::tuple res = py::make_tuple(pred_pose_vec, inlier_map);
+    return res;
 }
 
 PYBIND11_MODULE(lm_pnp, m){

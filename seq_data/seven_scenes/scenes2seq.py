@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
     train_frames = []
     for train_seq in train_seqs_l:
-        json_path = os.path.join(seq_dir, 'seq-%02d' % test_seq, 'seq.json')
+        json_path = os.path.join(seq_dir, 'seq-%02d' % train_seq, 'seq.json')
         seq = FrameSeqData(json_path)
         train_frames += seq.frames
 
